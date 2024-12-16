@@ -3,7 +3,7 @@
 import argparse
 
 # Tool version
-TOOL_VERSION = "0.0.1"
+TOOL_VERSION = "0.1.0"
 
 def main():
     # Initialize argument parser
