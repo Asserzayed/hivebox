@@ -3,7 +3,8 @@
 import argparse
 from flask import Flask, jsonify
 from jsonpath_ng.ext import parse
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from dateutil import parser as createdAt_parser
 import requests
 
 
@@ -20,6 +21,7 @@ SENSEBOX_IDS = ['5fb7de317a70a5001c6af2da','65ccf440ece12100080f938b','64a6860b9
 @app.route('/temperature', methods=['GET'])
 def get_readings():  
     results = []
+    average_temperature = 0
     try:
         for SENSEBOX_ID in SENSEBOX_IDS:
             api_endpoint = f"{EXTERNAL_API_BASE_ENDPOINT}/{SENSEBOX_ID}?format=json"
@@ -30,22 +32,26 @@ def get_readings():
 
             # Parse response as JSON python object == dict == json.loads(response.text)
             data = response.json()
+
             # Expression tested on https://jsonpath.com/ on a response sample (get reading from all temp sensors)
             jsonpath_expression = parse('$.sensors[?(@.unit=="°C")].lastMeasurement')
-
+            
             # Other way to match jsonpath_ng.ext.match('$.sensors[?(@.unit=="°C")].lastMeasurement', json_obj) #OR# matches = [match.value for match in jsonpath_expression.find(data)]
             for match in jsonpath_expression.find(data):
                 last_measurment = match.value
                 created_at = last_measurment.get('createdAt','')
-                # get matches with up-to-date readings (discard non-working temperature sensors)
+                # Get matches with up-to-date readings (discard non-working temperature sensors)
                 if created_at:
-                    created_at_fmt = created_at[:10]  #  the date portion (YYYY-MM-DD)
-                    if created_at_fmt == datetime.now().strftime('%Y-%m-%d'):
-                        results.append(match.value)  # Keep the match if it is from today to the result
-                        # Console log for matched results
+                    # parse into datetime object for easy comparison
+                    created_at_fmt = createdAt_parser.isoparse(created_at)
+                    if created_at_fmt > (datetime.now(timezone.utc) - timedelta(hours=1)):
+                        # Keep up-to-date readings
+                        results.append(match.value)
+                        average_temperature += float(match.value.get('value',''))
+                        # Console log to print fetched values
                         print(f'Matched lines {match.value}')
-        print(results)
-        return jsonify(results), 200
+
+        return jsonify({"Average temperature": f"{average_temperature/len(results)}"}), 200
     
     except requests.RequestException as e:
         # Handle API request issues
