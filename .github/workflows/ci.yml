@@ -47,8 +47,7 @@ jobs:
     steps:
     - name: hadolint Action
       uses: hadolint/hadolint-action@v3.1.0
-      with:
-        dockerfile: dockerfile # default params are enough for now
+      
     - name: build docker image
       uses: docker/build-push-action@v6.10.0
 
