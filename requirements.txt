@@ -1,0 +1,6 @@
+flask
+jsonpath_ng
+requests
+responses
+pytest
+python-dateutil
