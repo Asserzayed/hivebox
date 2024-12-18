@@ -53,9 +53,6 @@ jobs:
             echo "Version mismatch. Expected: $expected_version, Got: $version"
             exit 1
           fi
-
-    - name: OSSF Scorecard action
-      uses: ossf/scorecard-action@v2.4.0
             
         
   test-docker:
