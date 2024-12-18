@@ -1,3 +1,5 @@
 flask
 jsonpath_ng
 requests
+responses
+pytest
