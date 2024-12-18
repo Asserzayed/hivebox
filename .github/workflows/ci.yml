@@ -35,9 +35,25 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+    - name: unit tests with pytest
       run: |
-        pytest
+        pytest -v
+    - name: Test /version endpoint (as per rubric)
+      run: |
+        flask --app main run & sleep 5
+        response=$(curl -s http://localhost:5000/version)
+          echo "Response: $response"
+          
+          version=$(echo $response | python -c "import sys, json; print(json.load(sys.stdin)['version'])")
+          expected_version="1.0.0"  # Set your expected version
+          
+          if [ "$version" = "$expected_version" ]; then
+            echo "Version matches: $version"
+          else
+            echo "Version mismatch. Expected: $expected_version, Got: $version"
+            exit 1
+          fi
+
     - name: OSSF Scorecard action
       uses: ossf/scorecard-action@v2.4.0
             
