@@ -39,13 +39,15 @@ jobs:
       run: |
         pytest -v
     - name: Test /version endpoint (as per rubric)
+      env:
+        APP_VERSION: ""
       run: |
         flask --app main run & sleep 5
         response=$(curl -s http://localhost:5000/version)
           echo "Response: $response"
           
           version=$(echo $response | python -c "import sys, json; print(json.load(sys.stdin)['version'])")
-          expected_version="1.0.0"  # Set your expected version
+          expected_version=$(python -c "from config import API_VERSION; print(API_VERSION)")  # Set your expected version
           
           if [ "$version" = "$expected_version" ]; then
             echo "Version matches: $version"

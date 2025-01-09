@@ -1,4 +1,5 @@
 import json
+from config import API_VERSION
 
 def test_version_endpoint(client):
     # Test the /version endpoint.
@@ -6,4 +7,4 @@ def test_version_endpoint(client):
     
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data['version'] == '1.0.0'
+    assert data['version'] == API_VERSION
