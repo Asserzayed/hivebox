@@ -47,7 +47,7 @@ jobs:
           echo "Response: $response"
           
           version=$(echo $response | python -c "import sys, json; print(json.load(sys.stdin)['version'])")
-          expected_version=$(python -c "from config import API_VERSION; print(API_VERSION)")  # Set your expected version
+          expected_version=$(python -c "import os; from dotenv import load_dotenv; load_dotenv();API_VERSION = os.getenv('API_VERSION', '0.0.0'); print(API_VERSION)")  # Set your expected version
           
           if [ "$version" = "$expected_version" ]; then
             echo "Version matches: $version"

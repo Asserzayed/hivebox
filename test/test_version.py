@@ -1,5 +1,9 @@
 import json
-from config import API_VERSION
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+API_VERSION = os.getenv('API_VERSION', '0.0.0')
 
 def test_version_endpoint(client):
     # Test the /version endpoint.

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 '''Flask mini web-app made as part of DevOps self-study End-to-End Project HiveBox'''
-from config import API_VERSION
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 from flask import Flask, jsonify
+from prometheus_flask_exporter import PrometheusMetrics
 from jsonpath_ng.ext import parse
 from dateutil import parser as createdAt_parser
 import requests
+
 
 @dataclass
 class TemperatureInfo:
@@ -35,15 +38,29 @@ class TemperatureInfo:
             valid=valid
         )
 
+# Load environent variables
+load_dotenv()
+SENSEBOX_IDS = os.getenv('SENSEBOX_IDS', '').split(',')
+API_VERSION = os.getenv('API_VERSION', '0.0.0')
+
+def status_assess(avg_temp):
+    if avg_temp <= 10.0 :
+        return 'Too Cold'
+    elif avg_temp > 10.0 and avg_temp <= 36.0:
+        return 'Good'
+    else:
+        return 'Too Hot'
+
+
 def create_app(testing=False):
     '''Creating Flask app instance.'''
     app = Flask(__name__)
 
+    # Initialize Prometheus metrics
+    metrics = PrometheusMetrics(app)
+
     # API Base Endpoint referenced from OpenSenseMap Docs.
     EXTERNAL_API_BASE_ENDPOINT = "https://api.opensensemap.org/boxes/"
-    # 3 Closely Selected SenseBoxes (as per rubric)
-    SENSEBOX_IDS = ['5fb7de317a70a5001c6af2da','65ccf440ece12100080f938b','64a6860b9ecd2b0007e82b26']
-
 
     @app.route('/temperature', methods=['GET'])
     def get_readings():
@@ -62,9 +79,9 @@ def create_app(testing=False):
                 # Extract temperature info
                 temperature_info = TemperatureInfo.from_dict(data)
 
-                # Calculate average
+                # Accumulate readings
                 results.append(temperature_info.value)
-            return jsonify({"Average temperature": f"{sum(results)/len(results)}"}), 200
+            return jsonify({"Average temperature": f"{sum(results)/len(results)}", "Status": f"{status_assess(sum(results)/len(results))}"}), 200
         
         except requests.RequestException as e:
             # Handle API request issues
