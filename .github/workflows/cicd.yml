@@ -74,7 +74,7 @@ jobs:
 
   build-and-push-image:
     needs: [lint-unit-test-python,lint-docker]
-    if: ${{ !((github.event_name == 'push' && github.ref == 'refs/heads/dev') || github.event_name == 'pull_request') }}
+    if: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/dev') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -110,7 +110,7 @@ jobs:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
             # Use the VERSION environment variable for tagging pushes to main
-            type=raw,value=$VERSION,enable={{is_default_branch}}
+            type=raw,value=${{ env.VERSION }},enable={{is_default_branch}}
             # Add a latest tag for main
             type=raw,value=latest,enable={{is_default_branch}}
             # Add a branch tag for main
@@ -127,6 +127,6 @@ jobs:
       uses: docker/build-push-action@v4
       with:
         context: .
-        push: True
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
