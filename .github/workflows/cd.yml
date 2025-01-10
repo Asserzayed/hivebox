@@ -6,7 +6,8 @@ on:
       - "ci"
     types:
       - completed
-    tags:
+    push:
+      tags:
       - 'v*'          # Production tags
       - 'v*-dev.*'    # Development tags
     branches:
