@@ -4,3 +4,5 @@ requests
 responses
 pytest
 python-dateutil
+python-dotenv
+prometheus_flask_exporter

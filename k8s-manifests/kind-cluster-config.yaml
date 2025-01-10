@@ -1,0 +1,14 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ingress-cluster
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # This port maps the ingress controller's default HTTP port (80) to the host's port 30080.
+      - containerPort: 80
+        hostPort: 30080
+        protocol: TCP
+      # This port maps the ingress controller's default HTTPS port (443) to the host's port 30443.
+      - containerPort: 443
+        hostPort: 30443
+        protocol: TCP

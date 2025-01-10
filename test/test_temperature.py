@@ -9,6 +9,7 @@ def test_temperature_endpoint_success(client):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['Average temperature'] == '20.5'
+    assert data['Status'] == 'Good'
 
 @pytest.mark.usefixtures("mock_temperature_api_failure")
 def test_temperature_endpoint_failure(client):

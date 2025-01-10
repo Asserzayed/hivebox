@@ -6,8 +6,12 @@ name: ci
 on:
   push:
     branches: [ "dev","main" ]
+    tags:
+      - 'v*.*.*'    # Match prod tags
+      - 'v*.*.*-*'  # Match dev tags
   pull_request:
     branches: [ "main" ]
+
 
 permissions:
   contents: read
@@ -39,13 +43,15 @@ jobs:
       run: |
         pytest -v
     - name: Test /version endpoint (as per rubric)
+      env:
+        APP_VERSION: ""
       run: |
         flask --app main run & sleep 5
         response=$(curl -s http://localhost:5000/version)
           echo "Response: $response"
           
           version=$(echo $response | python -c "import sys, json; print(json.load(sys.stdin)['version'])")
-          expected_version="1.0.0"  # Set your expected version
+          expected_version=$(python -c "import os; from dotenv import load_dotenv; load_dotenv();API_VERSION = os.getenv('API_VERSION', '0.0.0'); print(API_VERSION)")  # Set your expected version
           
           if [ "$version" = "$expected_version" ]; then
             echo "Version matches: $version"
@@ -61,8 +67,3 @@ jobs:
     - uses: actions/checkout@v4
     - name: hadolint Action
       uses: hadolint/hadolint-action@v3.1.0
-      
-    - name: build docker image
-      uses: docker/build-push-action@v6.10.0
-
-      
