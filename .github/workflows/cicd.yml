@@ -1,0 +1,132 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: 'ci-cd'
+
+on:
+  push:
+    branches: [ "dev","main" ]
+    tags:
+    - 'v*'          # Production tags
+    - 'v*-dev.*'    # Development tags
+  pull_request:
+    branches: [ "main" ]
+
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+    REGISTRY: ghcr.io
+    IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+
+  lint-unit-test-python:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: unit tests with pytest
+      run: |
+        pytest -v
+    - name: Test /version endpoint (as per rubric)
+      env:
+        APP_VERSION: ""
+      run: |
+        flask --app main run & sleep 5
+        response=$(curl -s http://localhost:5000/version)
+          echo "Response: $response"
+          
+          version=$(echo $response | python -c "import sys, json; print(json.load(sys.stdin)['version'])")
+          expected_version=$(python -c "import os; from dotenv import load_dotenv; load_dotenv();API_VERSION = os.getenv('API_VERSION', '0.0.0'); print(API_VERSION)")  # Set your expected version
+          
+          if [ "$version" = "$expected_version" ]; then
+            echo "Version matches: $version"
+          else
+            echo "Version mismatch. Expected: $expected_version, Got: $version"
+            exit 1
+          fi
+            
+  lint-docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: hadolint Action
+      uses: hadolint/hadolint-action@v3.1.0
+
+  build-and-push-image:
+    needs: [lint-unit-test-python,lint-docker]
+    if: ${{ !((github.event_name == 'push' && github.ref == 'refs/heads/dev') || github.event_name == 'pull_request') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Log in to the Container registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.MY_GITHUB_TOKEN }}
+
+    - name: Load Environment Variables from .env (centralized app config)
+      id: load_env
+      run: |
+        echo "Loading .env variables..."
+        if [ -f .env ]; then
+          export $(grep -v '^#' .env | xargs)
+          echo "VERSION=${API_VERSION}" >> $GITHUB_ENV
+          echo "Loaded VERSION: $VERSION"
+        else
+          echo ".env file not found!"
+          exit 1
+        fi
+
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+            # Use the VERSION environment variable for tagging pushes to main
+            type=raw,value=$VERSION,enable={{is_default_branch}}
+            # Add a latest tag for main
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Add a branch tag for main
+            type=ref,event=branch,enable={{is_default_branch}}
+            # For production tags (vX.Y.Z) automatically tags as latest | Handles development tags (vX.Y.Z-dev.N)
+            type=semver,pattern={{version}},enable=${{ contains(github.ref, 'v') }}
+
+    - name: Display Metadata
+      run: |
+        echo "Docker Tags: ${{ steps.meta.outputs.tags }}"
+        echo "Image Labels: ${{ steps.meta.outputs.labels }}"
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: True
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
