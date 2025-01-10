@@ -7,8 +7,8 @@ on:
   push:
     branches: [ "dev","main" ]
     tags:
-      - 'v*.*.*'    # Match prod tags
-      - 'v*.*.*-*'  # Match dev tags
+    - 'v*'          # Production tags
+    - 'v*-dev.*'    # Development tags
   pull_request:
     branches: [ "main" ]
 
